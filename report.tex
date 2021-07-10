@@ -1,0 +1,95 @@
+\documentclass[15pt]{scrartcl} % Font size
+\usepackage{listings}
+\newcommand{\horrule}[1]{\noindent\rule{\linewidth}{#1}}
+
+\title{	
+	\normalfont\normalsize
+    \vspace{150pt}
+	\textsc{\Large Gebze Technical University}\\ % Your university, school and/or department name(s)
+	\vspace{100pt} 
+	\textsc{\Large CSE 344 System Programming Final Report}\\ % The assignment title
+	\vspace{12pt} 
+}
+
+\author{\huge Muhammed Mücahit ÜÇER \\ 161044030} % Your name
+
+
+
+\begin{document}
+
+\maketitle % Print the title
+
+\newpage
+\section{\huge Server}
+
+\subsection{struct Serversetup}
+1- All information about the server is kept in this structure.\\\\
+2- As many threads and sockets are created as the poolsize is.\\\\
+3- After the sockets are created, they are initialized as EMPTY.\\\\
+4-Scheduler() function waits for a connection, when it connects, it searches for an EMPTY socket and assigns the created socketfd to it, then broadcasts to activate the threads.\\\\
+5-All threads in await state start running and look for the socket assigned to them, if they are assigned, they initiate communication with the client.\\\\
+6- Before table records are sent, some serialize operations are applied and sent with the send str() function.
+
+\section{\huge Csv}
+\subsection{struct Csv}
+1- After reading the dataset, all information is saved in this structure.\\\\
+2- It also contains the necessary variables to implement the reader-writer paradigm.\\\\
+3- After the data is read from the file and parsed, it is stored in a 2d string array.\\\\
+4- The reader-writer paradigm was implemented as we saw in the lesson.\\\\
+5- The reason why I use 2d string array is completely easy to implement.
+\subsection{readerLock readerUnlock sample}
+
+\begin{lstlisting}[
+language=C,
+frame=single,
+showstringspaces=false,
+numbers=left,
+numberstyle=\tiny,
+]
+void reader_lock(struct Csv *handle){
+    if (pthread_mutex_lock(&handle->m) != 0){
+     errexit("reader_lock, pthread_mutex_lock");
+    }
+    while ((handle->AW + handle->WW) > 0){
+     handle->WR++;
+     pthread_cond_wait(&handle->okToRead, &handle->m);
+     handle->WR--;
+    }
+    handle->AR++;
+     if (pthread_mutex_unlock(&handle->m) != 0){
+     errexit("reader_lock, pthread_mutex_unlock");
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[
+language=C,
+frame=single,
+showstringspaces=false,
+numbers=left,
+numberstyle=\tiny,
+]
+void reader_unlock(struct Csv *handle)
+{
+    if (pthread_mutex_lock(&handle->m) != 0){
+     errexit("reader_unlock, pthread_mutex_lock");
+    }
+    handle->AR--;
+    if (handle->AR == 0 && handle->WW > 0){
+     if (pthread_cond_signal(&handle->okToWrite) != 0){
+        errexit("reader_unlock, pthread_cond_signal");
+       }
+    }
+    if (pthread_mutex_unlock(&handle->m) != 0){
+     errexit("reader_unlock, pthread_mutex_unlock");
+    }
+}
+\end{lstlisting}
+
+It is used in the searchforquery function to wrap read or write operations.
+
+\section{\huge Client}
+
+It reads the queries from the file and sends the query to the server if it matches its own id. It does this in a loop. If there is more than one query, it sends them all over the same connection.
+
+\end{document}
